@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "step-pipeline"
+s3_bucket = "blog-step-pipeline-demo"
+s3_prefix = "step-pipeline"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "S3Bucket=\"blog-step-pipeline-demo\" SNSEndpoint=\"liaamo@amazon.com\" SNSEndpointType=\"email\""

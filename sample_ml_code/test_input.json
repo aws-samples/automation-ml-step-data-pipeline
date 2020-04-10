@@ -1,0 +1,12 @@
+{
+  "ModelName": "PipelineTest_01",
+  "ModelProgram": "s3://step-pipeline-mys3bucket-i93g2vui13t4/testcode/kmeansandey.py",
+  "PreProcessingProgram": "s3://step-pipeline-mys3bucket-i93g2vui13t4/testcode/kmeanswsssey.py",
+  "EMRCloudFormation": "https://s3.amazonaws.com/step-pipeline-mys3bucket-i93g2vui13t4/emr-cluster-sample.yaml",
+  "EMRParameters": "https://s3.amazonaws.com/step-pipeline-mys3bucket-i93g2vui13t4/emr-cluster-config.json",
+  "JobInput": "s3://aws-bigdata-blog/artifacts/anomaly-detection-using-pyspark/sensorinputsmall/",
+  "SecurityGroup": "sg-aca721d4",
+  "SubNet": "subnet-cf10a197",
+  "ClusterSize":"4",
+  "ProcessingMode": ["TRAINING"]
+}

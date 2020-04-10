@@ -1,0 +1,912 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Step Pipe Line
+Globals:
+  Function:
+    Timeout: 3
+Parameters:
+  S3Bucket:
+    Type: String
+    Description: S3 Bucket
+  SNSEndpoint:
+    Type: String
+    Description: SNS Endpoint
+  SNSEndpointType:
+    Type: String
+    Description: SNS Endpoint Type
+    Default: email
+Resources:
+  AddStepLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: add_emr_step/
+      Handler: add_emr_step.lambda_handler
+      Runtime: python3.8
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - AddStepLambdaRole
+        - Arn
+  AddStepLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - elasticmapreduce:List*
+            - elasticmapreduce:Describe*
+            - elasticmapreduce:Add*
+            - states:Send*
+            Resource: '*'
+  AsyncStartStateMachineLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: async_start/
+      Handler: async_start.lambda_handler
+      Runtime: python3.8 
+      Role:
+        Fn::GetAtt:
+        - StartStateMachineLambdaRole
+        - Arn
+  StartStateMachineLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: StateMachineLambdaPermissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - states:StartExecution
+            Resource: '*'
+  CheckClusterLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: check_emr_cluster/
+      Handler: check_emr_cluster.lambda_handler
+      Runtime: python3.8  
+      Role:
+        Fn::GetAtt:
+        - AddStepLambdaRole
+        - Arn     
+  CheckStepLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: check_emr_step/
+      Handler: check_emr_step.lambda_handler
+      Runtime: python3.8
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - AddStepLambdaRole
+        - Arn  
+  CreateCFNStackLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: create_cfn_stack/
+      Handler: create_cfn_stack.lambda_handler
+      Runtime: python3.8 
+      Role:
+        Fn::GetAtt:
+        - CFNLambdaRole
+        - Arn
+  DeleteCFNStackLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: delete_cfn_stack/
+      Handler: delete_cfn_stack.lambda_handler
+      Runtime: python3.8
+      Role:
+        Fn::GetAtt:
+        - CFNLambdaRole
+        - Arn       
+  DescribeCFNStackLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: describe_cfn_stack/
+      Handler: describe_cfn_stack.lambda_handler
+      Runtime: python3.8 
+      Role:
+        Fn::GetAtt:
+        - CFNLambdaRole
+        - Arn 
+  GetArrayLengthLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: get_array_length/
+      Handler: get_array_length.lambda_handler
+      Runtime: python3.8  
+      Role:
+        Fn::GetAtt:
+        - CFNLambdaRole
+        - Arn
+  GetClusterIdLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: get_cluster_id/
+      Handler: get_cluster_id.lambda_handler
+      Runtime: python3.8
+      Role:
+        Fn::GetAtt:
+        - CFNLambdaRole
+        - Arn
+  FailureLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: send_failure/
+      Handler: send_failure.lambda_handler
+      Runtime: python3.8
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - SuccessFailureLambdaRole
+        - Arn              
+  SuccessLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: send_success/
+      Handler: send_success.lambda_handler
+      Runtime: python3.8
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - SuccessFailureLambdaRole
+        - Arn 
+  SuccessFailureLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - states:SendTask*
+            Resource: '*'      
+  StartStateMachineLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: updaate repo
+    Properties:
+      CodeUri: start_statemachine/
+      Handler: start_statemachine.lambda_handler
+      Runtime: python3.8
+      Role:
+        Fn::GetAtt:
+        - StartStateMachineLambdaRole
+        - Arn
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - states.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonElasticMapReduceFullAccess
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - lambda:*
+            Resource: '*'
+  SubmitStepStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: SubmitStepStateMachine
+      DefinitionString:
+        Fn::Sub: "{\n  \"StartAt\": \"CheckCluster\",\n  \"States\": {\n    \"CheckCluster\"\
+          : {\n      \"Type\": \"Task\",\n      \"Resource\": \"${CheckClusterLambda.Arn}\"\
+          ,\n      \"ResultPath\": \"$.clusterstatus\",\n      \"Next\": \"IsClusterUp\"\
+          \n    },\n    \"IsClusterUp\": {\n          \"Type\": \"Choice\",\n    \
+          \      \"Choices\": [\n            {\n              \"Variable\": \"$.clusterstatus.State\"\
+          ,\n              \"StringEquals\": \"WAITING\",\n              \"Next\"\
+          : \"AddStep\"\n            }\n          ],\n          \"Default\": \"WaitForCluster\"\
+          \n    },\n    \"WaitForCluster\": {\n        \"Type\": \"Wait\",\n     \
+          \   \"Seconds\": 30,\n        \"Next\": \"CheckCluster\"\n    },\n    \"\
+          SuccessState\" : {\n        \"Type\": \"Task\",\n        \"Resource\": \"\
+          ${SuccessLambda.Arn}\",\n        \"End\": true\n      },\n    \"FailedState\"\
+          : {\n        \"Type\" : \"Fail\"\n      },\n    \"SendFailure\" : {\n  \
+          \    \"Type\": \"Task\",\n      \"Resource\": \"${FailureLambda.Arn}\",\n\
+          \      \"Next\": \"FailedState\"\n      },\n    \"AddStep\": {\n       \
+          \ \"Type\": \"Task\",\n        \"Resource\": \"${AddStepLambda.Arn}\",\n\
+          \        \"ResultPath\": \"$.addstepstatus\",\n        \"Next\": \"CheckStep\"\
+          ,\n        \"Catch\": [\n          {\n            \"ErrorEquals\":[\"States.ALL\"\
+          ],\n            \"Next\":\"SendFailure\"\n          }\n        ]\n     \
+          \ },\n    \"IsStepDone\": {\n          \"Type\": \"Choice\",\n         \
+          \ \"Choices\": [\n            {\n              \"Variable\": \"$.stepstatus.Step.Status.State\"\
+          ,\n              \"StringEquals\": \"COMPLETED\",\n              \"Next\"\
+          : \"SuccessState\"\n            },\n            {\n              \"Variable\"\
+          : \"$.stepstatus.Step.Status.State\",\n              \"StringEquals\": \"\
+          FAILED\",\n              \"Next\": \"SendFailure\"\n            }\n    \
+          \      ],\n          \"Default\": \"WaitForStep\"\n    },\n    \"WaitForStep\"\
+          : {\n        \"Type\": \"Wait\",\n        \"Seconds\": 30,\n        \"Next\"\
+          : \"CheckStep\"\n    },\n    \"CheckStep\": {\n      \"Type\": \"Task\"\
+          ,\n      \"Resource\": \"${CheckStepLambda.Arn}\",\n      \"ResultPath\"\
+          : \"$.stepstatus\",\n      \"Next\": \"IsStepDone\"\n      }\n\n  }\n}"
+      RoleArn:
+        Fn::GetAtt:
+        - StateMachineRole
+        - Arn
+  StepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: states.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: AllowLambdaInvocation
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource:
+            - Fn::GetAtt:
+              - CreateCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - DescribeCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - DeleteCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - StartStateMachineLambda
+              - Arn
+            - Fn::GetAtt:
+              - AsyncStartStateMachineLambda
+              - Arn
+            - Fn::GetAtt:
+              - GetClusterIdLambda
+              - Arn
+            - Fn::GetAtt:
+              - GetArrayLengthLambda
+              - Arn  
+  MLPipelineAlertingSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint: !Ref SNSEndpoint
+        Protocol: !Ref SNSEndpointType
+      - Endpoint: !Ref SNSEndpoint
+        Protocol: !Ref SNSEndpointType
+      - Endpoint: !Ref SNSEndpoint
+        Protocol: !Ref SNSEndpointType  
+  StepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: states.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: AllowLambdaInvocation
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource:
+            - Fn::GetAtt:
+              - CreateCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - DescribeCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - DeleteCFNStackLambda
+              - Arn
+            - Fn::GetAtt:
+              - StartStateMachineLambda
+              - Arn
+            - Fn::GetAtt:
+              - AsyncStartStateMachineLambda
+              - Arn
+            - Fn::GetAtt:
+              - GetClusterIdLambda
+              - Arn
+            - Fn::GetAtt:
+              - GetArrayLengthLambda
+              - Arn
+      - PolicyName: AllowPublishToSNSTopic
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: sns:Publish
+            Resource:
+              Ref: MLPipelineAlertingSNSTopic
+  CFNLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaExecutionPermissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - iam:PassRole
+            Resource:
+              Fn::GetAtt:
+              - CloudFormationRole
+              - Arn
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - cloudformation:CreateStack
+            - cloudformation:DescribeStacks
+            - cloudformation:DeleteStack
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - s3:HeadObject
+            - s3:GetObject
+            Resource:
+            - Fn::Sub: arn:aws:s3:::${S3Bucket}
+            - Fn::Sub: arn:aws:s3:::${S3Bucket}/*                
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: cloudformation.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: AllowEMRClusterCreation
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - emr:*
+            - elasticmapreduce:*
+            Resource: '*'
+          - Effect: Allow
+            Action: ec2:DescribeKeyPairs
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - iam:GetRole
+            - iam:CreateRole
+            - iam:PutRolePolicy
+            - iam:GetRolePolicy
+            - iam:AttachRolePolicy
+            - iam:DetachRolePolicy
+            - iam:DeleteRolePolicy
+            - iam:DeleteRole
+            - iam:CreateInstanceProfile
+            - iam:AddRoleToInstanceProfile
+            - iam:RemoveRoleFromInstanceProfile
+            - iam:DeleteInstanceProfile
+            - iam:AddRoleToInstanceProfile
+            - iam:PassRole
+            Resource: '*'
+  MLStateMachine:
+    Type: 'AWS::StepFunctions::StateMachine'
+    DependsOn:
+      - CreateCFNStackLambda
+      - DescribeCFNStackLambda
+      - StartStateMachineLambda
+      - AsyncStartStateMachineLambda
+      - MLPipelineAlertingSNSTopic
+    Properties:
+      StateMachineName: MLStateMachine
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+      DefinitionString:
+        Fn::Sub:
+          - |
+            {
+              "Comment": "Create an EMR cluster with CFN, execute model from preprocessing, training, and prediction, and then destroy the cluster",
+              "StartAt": "Step 1 - Launch EMR cluster with CFN template",
+              "States": {
+                "Step 1 - Launch EMR cluster with CFN template": {
+                  "Type": "Task",
+                  "Resource": "${CreateCFNStackLambda.Arn}",
+                  "TimeoutSeconds": 3600,
+                  "Next": "Wait 1 minute for stack creation",
+                  "ResultPath": "$.StackId",
+                  "Parameters": {
+                    "template_url.$": "$.EMRCloudFormation",
+                    "parameter_url.$": "$.EMRParameters",
+                    "model_name.$": "$.ModelName",
+                    "stack_prefix": "auto-emr-",
+                    "execution_name.$": "$$.Execution.Name",
+                    "cfn_role": "${CloudFormationRole.Arn}",
+                    "project_tag": "step-pipeline",
+                    "jobinput.$": "$.JobInput",
+                    "securitygroup.$": "$.SecurityGroup",
+                    "subnet.$": "$.SubNet",
+                    "clustersize.$": "$.ClusterSize"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ]
+                },
+                "Wait 1 minute for stack creation": {
+                  "Type": "Wait",
+                  "Seconds": 60,
+                  "Next": "Poll status of CFN stack creation"
+                },
+                "Poll status of CFN stack creation": {
+                  "Type": "Task",
+                  "Resource": "${DescribeCFNStackLambda.Arn}",
+                  "TimeoutSeconds": 300,
+                  "ResultPath": "$.Status",
+                  "Next": "Evaluate status of CFN stack creation",
+                  "Parameters": {
+                    "stack_id.$": "$.StackId"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [ "States.ALL" ],
+                      "Next": "Evaluate status of CFN stack creation"
+                    }
+                  ]
+                },
+                "Evaluate status of CFN stack creation": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "CREATE_IN_PROGRESS",
+                      "Next": "Wait 1 minute for stack creation"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "ROLLBACK_IN_PROGRESS",
+                      "Next": "Wait 1 minute for stack creation"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "CREATE_FAILED",
+                      "Next": "Alert on failed CFN stack creation"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "ROLLBACK_FAILED",
+                      "Next": "Alert on failed CFN stack creation"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "ROLLBACK_COMPLETE",
+                      "Next": "Alert on failed CFN stack creation"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "CREATE_COMPLETE",
+                      "Next": "Get EMR cluster id"
+                    }
+                  ],  
+                  "Default": "Unexpected CFN stack status"
+                },
+                "Alert on failed CFN stack creation": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sns:publish",
+                  "Parameters": {
+                    "TopicArn": "${MLPipelineAlertingSNSTopic}",
+                    "Subject": "EMR cluster creation failed",
+                    "Message": "EMR cluster creation for Machine Learning pipeline failed. See events of the stack in CloudFormation console and then delete it.",
+                    "MessageStructure": "text"
+                  },
+                  "Next": "Pipeline failed"
+                },
+                "Get EMR cluster id": {
+                  "Type": "Task",
+                  "Resource": "${GetClusterIdLambda.Arn}",
+                  "TimeoutSeconds": 300,
+                  "ResultPath": "$.ClusterId",
+                  "Next": "Step 2 - Initiate preprocessing on the EMR cluster",
+                  "Parameters": {
+                    "stack_id.$": "$.StackId"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [ "States.ALL" ],
+                      "Next": "Delete EMR cluster"
+                    }
+                  ]
+                },
+                "Step 2 - Initiate preprocessing on the EMR cluster": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                  "TimeoutSeconds": 86400,
+                  "Next": "Step 3 - Initiate model on the EMR cluster",
+                  "ResultPath": null,
+                  "Parameters": {
+                    "FunctionName": "${AsyncStartStateMachineLambda}",
+                    "Payload": {
+                      "task_token.$": "$$.Task.Token",
+                      "statemachine_arn": "${TransformStateMachineArn}",
+                      "program_name": "PreProcessingProgram",
+                      "program_mode.$": "$.ProcessingMode[0]",
+                      "execution_name.$": "$$.Execution.Name",
+                      "json_input.$": "$"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [ "States.ALL" ],
+                      "ResultPath": null,
+                      "Next": "Alert on failed step"
+                    }
+                  ]
+                },
+                "Step 3 - Initiate model on the EMR cluster": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+                  "TimeoutSeconds": 86400,
+                  "Next": "Remove processing mode from list",
+                  "ResultPath": null,
+                  "Parameters": {
+                    "FunctionName": "${AsyncStartStateMachineLambda}",
+                    "Payload": {  
+                      "task_token.$": "$$.Task.Token",
+                      "statemachine_arn": "${TransformStateMachineArn}",
+                      "program_name": "ModelProgram",
+                      "program_mode.$": "$.ProcessingMode[0]",
+                      "execution_name.$": "$$.Execution.Name",
+                      "json_input.$": "$"
+                    }
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [ "States.ALL" ],
+                      "ResultPath": null,
+                      "Next": "Alert on failed step"
+                    }
+                  ]
+                },
+                "Alert on failed step": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sns:publish",
+                  "ResultPath": null,
+                  "Parameters": {
+                    "TopicArn": "${MLPipelineAlertingSNSTopic}",
+                    "Subject": "EMR execution step failed",
+                    "Message": "EMR execution step in Machine Learning pipeline failed. See the error message in Step Functions console.",
+                    "MessageStructure": "text"
+                  },
+                  "Next": "Mark failed step"
+                },
+                "Mark failed step": {
+                  "Type": "Pass",
+                  "Result": {
+                    "Status": "failed"
+                  },
+                  "ResultPath": "$.Execution",
+                  "Next": "Delete EMR cluster"
+                },
+                "Remove processing mode from list": {
+                  "Comment": "Use the slice operator to remove the mode that was just executed",
+                  "Type": "Pass",
+                  "InputPath": "$.ProcessingMode[1:]",
+                  "ResultPath": "$.ProcessingMode",
+                  "Next": "Get remaining processing modes"
+                },
+                "Get remaining processing modes": {
+                  "Type": "Task",
+                  "Resource": "${GetArrayLengthLambda.Arn}",
+                  "TimeoutSeconds": 300,
+                  "Next": "Evaluate next processing mode",
+                  "ResultPath": "$.ProcessingModeLength",
+                  "Parameters": {
+                    "processing_mode.$": "$.ProcessingMode"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ]
+                },
+                "Evaluate next processing mode": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.ProcessingModeLength",
+                      "NumericEquals": 0,
+                      "Next": "Mark all steps success"
+                    }
+                  ],  
+                  "Default": "Step 2 - Initiate preprocessing on the EMR cluster"
+                },
+                "Mark all steps success": {
+                  "Type": "Pass",
+                  "Result": {
+                    "Status": "succeeded"
+                  },
+                  "ResultPath": "$.Execution",
+                  "Next": "Delete EMR cluster"
+                },
+                "Delete EMR cluster": {
+                  "Type": "Task",
+                  "Resource": "${DeleteCFNStackLambda.Arn}",
+                  "TimeoutSeconds": 3600,
+                  "Next": "Wait 1 minute for stack deletion",
+                  "ResultPath": "$.StackId",
+                  "Parameters": {
+                    "stack_id.$": "$.StackId",
+                    "cfn_role": "${CloudFormationRole.Arn}"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ]
+                },
+                "Wait 1 minute for stack deletion": {
+                  "Type": "Wait",
+                  "Seconds": 60,
+                  "Next": "Poll status of CFN stack deletion"
+                },
+                "Poll status of CFN stack deletion": {
+                  "Type": "Task",
+                  "Resource": "${DescribeCFNStackLambda.Arn}",
+                  "TimeoutSeconds": 300,
+                  "ResultPath": "$.Status",
+                  "Next": "Evaluate status of CFN stack deletion",
+                  "Parameters": {
+                    "stack_id.$": "$.StackId"
+                  },
+                  "Retry": [
+                    {
+                      "ErrorEquals": [ "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 6,
+                      "BackoffRate": 2
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": [ "States.ALL" ],
+                      "Next": "Evaluate status of CFN stack deletion"
+                    }
+                  ]
+                },
+                "Evaluate status of CFN stack deletion": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "DELETE_IN_PROGRESS",
+                      "Next": "Wait 1 minute for stack deletion"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "DELETE_COMPLETE",
+                      "Next": "Check for failed EMR step"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringEquals": "DELETE_FAILED",
+                      "Next": "Alert on failed CFN stack deletion"
+                    }
+                  ],  
+                  "Default": "Unexpected CFN stack status"
+                },
+                "Check for failed EMR step": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.Execution.Status",
+                      "StringEquals": "succeeded",
+                      "Next": "Pipeline completed succesfully"
+                    },
+                    {
+                      "Variable": "$.Execution.Status",
+                      "StringEquals": "failed",
+                      "Next": "Pipeline failed"
+                    }
+                  ],  
+                  "Default": "Pipeline completed succesfully"
+                },
+                "Alert on failed CFN stack deletion": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sns:publish",
+                  "Parameters": {
+                    "TopicArn": "${MLPipelineAlertingSNSTopic}",
+                    "Subject": "EMR cluster deletion failed",
+                    "Message": "EMR cluster deletion for Machine Learning pipeline failed. Please investigate in Step Functions console.",
+                    "MessageStructure": "text"
+                  },
+                  "Next": "Pipeline failed"
+                },
+                "Pipeline failed": {
+                  "Type": "Fail",
+                  "Error": "Fail pipeline",
+                  "Cause": "EMR execution step or stack creation/deletion failed."
+                },
+                "Unexpected CFN stack status": {
+                  "Type": "Pass",
+                  "Comment": "Please investigate the issue in CloudFormation console.",
+                  "Next": "Pipeline failed"
+                },
+                "Pipeline completed succesfully": {
+                  "Type": "Succeed"
+                }
+              }
+            }
+          - TransformStateMachineArn: !Ref SubmitStepStateMachine
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  AddStepLambda:
+    Description: "AddStepLambda ARN"
+    Value: !GetAtt AddStepLambda.Arn
+  AsyncStartStateMachineLambda:
+    Description: "AsyncStartStateMachineLambda ARN"
+    Value: !GetAtt AsyncStartStateMachineLambda.Arn
+  CheckClusterLambda:
+    Description: "CheckClusterLambda ARN"
+    Value: !GetAtt CheckClusterLambda.Arn
+  CheckStepLambda:
+    Description: "CheckStepLambda ARN"
+    Value: !GetAtt CheckStepLambda.Arn
+  CreateCFNStackLambda:
+    Description: "CreateCFNStackLambda ARN"
+    Value: !GetAtt CreateCFNStackLambda.Arn  
+  DeleteCFNStackLambda:
+    Description: "DeleteCFNStackLambda ARN"
+    Value: !GetAtt DeleteCFNStackLambda.Arn  
+  DescribeCFNStackLambda:
+    Description: "DescribeCFNStackLambda ARN"
+    Value: !GetAtt DescribeCFNStackLambda.Arn      
+  GetArrayLengthLambda:
+    Description: "GetArrayLengthLambda ARN"
+    Value: !GetAtt GetArrayLengthLambda.Arn  
+  GetClusterIdLambda:
+    Description: "GetClusterIdLambda ARN"
+    Value: !GetAtt GetClusterIdLambda.Arn  
+  FailureLambda:
+    Description: "FailureLambda ARN"
+    Value: !GetAtt FailureLambda.Arn 
+  SuccessLambda:
+    Description: "SuccessLambda ARN"
+    Value: !GetAtt SuccessLambda.Arn
+  StartStateMachineLambda:
+    Description: "StartStateMachineLambda ARN"
+    Value: !GetAtt StartStateMachineLambda.Arn   
+  StateMachineRole:
+    Description: "StateMachineRole ARN"
+    Value: !GetAtt StateMachineRole.Arn
+  StepFunctionsRole:
+    Description: "StepFunctionsRole ARN"
+    Value: !GetAtt StepFunctionsRole.Arn
+  CloudFormationRole:
+    Description: "CloudFormationRole ARN"
+    Value: !GetAtt CloudFormationRole.Arn
+
+
+
+

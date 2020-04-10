@@ -1,0 +1,30 @@
+[
+  {
+    "ParameterKey": "ClusterName",
+    "ParameterValue": "testcluster"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "awsproserve"
+  },
+  {
+    "ParameterKey": "EMRRelease",
+    "ParameterValue": "emr-5.22.0"
+  },
+  {
+    "ParameterKey": "Keyname",
+    "ParameterValue": "emrcluster-launch"
+  },
+  {
+    "ParameterKey": "EMRClusterSubnet",
+    "ParameterValue": "SubnetA"
+  },
+  {
+    "ParameterKey": "MasterInstanceGroupType",
+    "ParameterValue": "c5.4xlarge"
+  },
+  {
+    "ParameterKey": "CoreInstanceGroupType",
+    "ParameterValue": "c5.4xlarge"
+  }
+]
