@@ -238,10 +238,8 @@ Resources:
       LogUri:
         Fn::Join:
           - ''
-          - - 's3://aws-logs-'
-            - !Ref 'AWS::AccountId'
-            - '-'
-            - !Ref 'AWS::Region'
+          - - 's3://'
+            - !Ref 'BootstrapBucket'
             - '/elasticmapreduce/'
             - !Ref 'ClusterName'
             - '-'
@@ -286,7 +284,7 @@ Resources:
       - Key: 'Project'
         Value: 'bigdata'
       - Key: 'Environment'
-        Value: 'Prod'
+        Value: 'demo'
       - Key: 'Owner'
         Value: !Ref 'Owner'
       - Key: 'Domain'
@@ -336,58 +334,19 @@ Resources:
              Version: '2012-10-17'
              Statement:
                -
-                 Effect: Allow
-                 Resource: "*"
-                 Action:
-                 - cloudwatch:*
-                 - ec2:Describe*
-                 - elasticmapreduce:Describe*
-                 - elasticmapreduce:ListBootstrapActions
-                 - elasticmapreduce:ListClusters
-                 - elasticmapreduce:ListInstanceGroups
-                 - elasticmapreduce:ListInstances
-                 - elasticmapreduce:ListSteps
-                 - rds:Describe*
-                 - sdb:*
-                 - sns:*
-                 - sqs:*
-                 - glue:CreateDatabase
-                 - glue:UpdateDatabase
-                 - glue:DeleteDatabase
-                 - glue:GetDatabase
-                 - glue:GetDatabases
-                 - glue:CreateTable
-                 - glue:UpdateTable
-                 - glue:DeleteTable
-                 - glue:GetTable
-                 - glue:GetTables
-                 - glue:GetTableVersions
-                 - glue:CreatePartition
-                 - glue:BatchCreatePartition
-                 - glue:UpdatePartition
-                 - glue:DeletePartition
-                 - glue:BatchDeletePartition
-                 - glue:GetPartition
-                 - glue:GetPartitions
-                 - glue:BatchGetPartition
-                 - glue:CreateUserDefinedFunction
-                 - glue:UpdateUserDefinedFunction
-                 - glue:DeleteUserDefinedFunction
-                 - glue:GetUserDefinedFunction
-                 - glue:GetUserDefinedFunctions
-               -
                  Effect: 'Allow'
-                 Resource: "*"
-                 Action: 'kms:*'
-               -
                  Action:
                    - s3:ListBucket
                    - s3:GetObject*
                    - s3:PutObject*
                    - s3:DeleteObject*
-                 Effect: Allow
-                 Resource: "*"
-
+                 Resource: [
+                   !Sub 'arn:aws:s3:::${BootstrapBucket}',
+                   !Sub 'arn:aws:s3:::${BootstrapBucket}/*',
+                   !Sub 'arn:aws:s3:::aws-bigdata-blog',
+                   !Sub 'arn:aws:s3:::aws-bigdata-blog/*',
+                   !Sub 'arn:aws:iam:::role/${EMRRole}'
+                 ]
   EMREC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:

@@ -1,12 +1,12 @@
 {
   "ModelName": "PipelineTest_01",
-  "ModelProgram": "s3://your-bucket-name/testcode/kmeansandey.py",
-  "PreProcessingProgram": "s3://your-bucket-name/testcode/kmeanswsssey.py",
-  "EMRCloudFormation": "https://s3.amazonaws.com/your-bucket-name/emr-cluster-sample.yaml",
-  "EMRParameters": "https://s3.amazonaws.com/your-bucket-name/emr-cluster-config.json",
+  "ModelProgram": "s3://blog-step-pipeline-demo/testcode/kmeansandey.py",
+  "PreProcessingProgram": "s3://blog-step-pipeline-demo/testcode/kmeanswsssey.py",
+  "EMRCloudFormation": "https://s3.amazonaws.com/blog-step-pipeline-demo/emr-cluster-sample.yaml",
+  "EMRParameters": "https://s3.amazonaws.com/blog-step-pipeline-demo/emr-cluster-config.json",
   "JobInput": "s3://aws-bigdata-blog/artifacts/anomaly-detection-using-pyspark/sensorinputsmall/",
-  "SecurityGroup": "your-security-group",
-  "SubNet": "your-subnet",
-  "ClusterSize":"no-of0clusters",
+  "SecurityGroup": "sg-ddf7f3aa",
+  "SubNet": "subnet-0273f4e5557b4e46a",
+  "ClusterSize":"2",
   "ProcessingMode": ["TRAINING"]
 }
